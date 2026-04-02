@@ -5,6 +5,7 @@ Event discovery via Anthropic API with web search.
 import json
 import logging
 import random
+import time
 from datetime import datetime
 
 import anthropic
@@ -62,7 +63,10 @@ def search_events() -> list[dict]:
     all_events: list[dict] = []
     seen_names: set[str] = set()
 
-    for query in queries:
+    for idx, query in enumerate(queries):
+        if idx > 0:
+            logger.info("Waiting 65s for rate limit (web search is token-heavy)...")
+            time.sleep(65)
         logger.info("Searching: %s", query)
         try:
             events = _run_search_query(client, query, today, source_summary)
@@ -93,13 +97,22 @@ def _run_search_query(
         "panel discussions, networking events, and webinars."
     )
 
-    response = client.messages.create(
-        model=config.ANTHROPIC_MODEL,
-        max_tokens=4096,
-        system=EXTRACTION_PROMPT.format(today=today, sources=source_summary),
-        tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
-        messages=[{"role": "user", "content": user_message}],
-    )
+    for attempt in range(5):
+        try:
+            response = client.messages.create(
+                model=config.ANTHROPIC_MODEL,
+                max_tokens=4096,
+                system=EXTRACTION_PROMPT.format(today=today, sources=source_summary),
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
+                messages=[{"role": "user", "content": user_message}],
+            )
+            break
+        except anthropic.RateLimitError:
+            wait = 30 * (attempt + 1)
+            logger.warning("Rate limited (attempt %d/5), waiting %ds...", attempt + 1, wait)
+            time.sleep(wait)
+    else:
+        raise anthropic.RateLimitError("Exhausted retries")
 
     # Extract the final text block from the response
     text = ""

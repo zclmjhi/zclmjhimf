@@ -4,6 +4,7 @@ Relevance scoring for discovered events using Claude.
 
 import json
 import logging
+import time
 from datetime import datetime
 
 import anthropic
@@ -60,6 +61,9 @@ def score_events(events: list[dict]) -> list[dict]:
     scored = []
 
     for i, event in enumerate(events, 1):
+        if i > 1:
+            logger.info("Waiting 8s for rate limit...")
+            time.sleep(8)
         logger.info("Scoring event %d/%d: %s", i, len(events), event.get("name", "?"))
         try:
             scores = _score_single(client, event, today)
@@ -79,16 +83,25 @@ def score_events(events: list[dict]) -> list[dict]:
 
 def _score_single(client: anthropic.Anthropic, event: dict, today: str) -> dict:
     event_json = json.dumps(event, indent=2, default=str)
-    response = client.messages.create(
-        model=config.ANTHROPIC_MODEL,
-        max_tokens=1024,
-        messages=[
-            {
-                "role": "user",
-                "content": SCORING_PROMPT.format(today=today, event_json=event_json),
-            }
-        ],
-    )
+    for attempt in range(5):
+        try:
+            response = client.messages.create(
+                model=config.ANTHROPIC_SCORING_MODEL,
+                max_tokens=1024,
+                messages=[
+                    {
+                        "role": "user",
+                    "content": SCORING_PROMPT.format(today=today, event_json=event_json),
+                }
+            ],
+            )
+            break
+        except anthropic.RateLimitError:
+            wait = 20 * (attempt + 1)
+            logger.warning("Rate limited (attempt %d/5), waiting %ds...", attempt + 1, wait)
+            time.sleep(wait)
+    else:
+        raise anthropic.RateLimitError("Exhausted retries")
 
     text = ""
     for block in response.content:

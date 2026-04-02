@@ -37,7 +37,7 @@ SEARCH_QUERIES = [
 ]
 
 # How many queries to use per run (randomly sampled from the list above)
-QUERIES_PER_RUN = 8
+QUERIES_PER_RUN = 4
 
 # ---------------------------------------------------------------------------
 # Source categories (informational – used in prompts to Claude)
@@ -104,7 +104,8 @@ EMAIL_FROM_NAME = "Defence Events Tracker"
 # ---------------------------------------------------------------------------
 # Anthropic model
 # ---------------------------------------------------------------------------
-ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
+ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
+ANTHROPIC_SCORING_MODEL = "claude-haiku-4-5-20251001"
 
 # ---------------------------------------------------------------------------
 # File paths
