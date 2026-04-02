@@ -19,6 +19,7 @@ from discovery import search_events
 from scoring import score_events
 from deduplication import filter_new
 from email_sender import build_html, send_digest
+from build_dashboard import build_dashboard
 
 load_dotenv()
 
@@ -146,6 +147,10 @@ def main(dry_run: bool = False) -> None:
                 print("HTML preview saved to digest_preview.html")
         else:
             logger.info("No events above threshold – no email sent")
+
+    # 6. Rebuild dashboard
+    build_dashboard()
+    print("Dashboard updated: dashboard.html")
 
     logger.info("=== Run complete ===")
 
