@@ -7,6 +7,7 @@ Run:  python main.py           # full discover + score + email run
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -34,6 +35,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+SCORED_EVENTS_FILE = "scored_events.json"
+
+
+def _save_scored_events(new_events: list[dict]) -> None:
+    """Append scored events to the persistent scored_events.json."""
+    existing = []
+    if os.path.exists(SCORED_EVENTS_FILE):
+        try:
+            with open(SCORED_EVENTS_FILE, "r") as f:
+                existing = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            existing = []
+    # Dedupe by name+date
+    seen = {(e.get("name", ""), e.get("date", "")) for e in existing}
+    for ev in new_events:
+        key = (ev.get("name", ""), ev.get("date", ""))
+        if key not in seen:
+            existing.append(ev)
+            seen.add(key)
+    existing.sort(key=lambda e: e.get("relevance_score", 0), reverse=True)
+    with open(SCORED_EVENTS_FILE, "w") as f:
+        json.dump(existing, f, indent=2, default=str)
+    logger.info("Saved %d scored events to %s", len(existing), SCORED_EVENTS_FILE)
+
 
 def main(dry_run: bool = False) -> None:
     logger.info("=== Defence Events Tracker – starting run ===")
@@ -60,6 +85,9 @@ def main(dry_run: bool = False) -> None:
     # 3. Score
     logger.info("Phase 3: Scoring %d events", len(new_events))
     scored_events = score_events(new_events)
+
+    # 3b. Persist scored events for dashboard
+    _save_scored_events(scored_events)
 
     # 4. Partition into headline / radar / filtered-out
     headline = [e for e in scored_events if e.get("relevance_score", 0) >= config.MIN_SCORE_HEADLINE]

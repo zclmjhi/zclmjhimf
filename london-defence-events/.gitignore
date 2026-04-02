@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .env
 seen_events.json
+scored_events.json
 tracker.log
 digest_preview.html
 cron.log

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Defence Events Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      padding: 24px;
+    }
+    .header {
+      max-width: 1200px;
+      margin: 0 auto 24px;
+    }
+    .header h1 { color: #1a5276; font-size: 28px; }
+    .header p { color: #666; margin-top: 4px; }
+    .stats {
+      display: flex;
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto 24px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      min-width: 140px;
+    }
+    .stat-card .number { font-size: 32px; font-weight: 700; }
+    .stat-card .label { font-size: 13px; color: #888; margin-top: 2px; }
+    .stat-card.high .number { color: #1a5276; }
+    .stat-card.med .number { color: #d4a017; }
+    .stat-card.low .number { color: #888; }
+
+    .controls {
+      max-width: 1200px;
+      margin: 0 auto 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .controls input, .controls select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+    .controls input { width: 280px; }
+    .controls label { font-size: 13px; color: #666; }
+
+    .table-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    thead th {
+      background: #1a5276;
+      color: white;
+      padding: 12px 14px;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      position: sticky;
+      top: 0;
+    }
+    thead th:hover { background: #1e6896; }
+    thead th .arrow { margin-left: 4px; font-size: 11px; }
+    tbody tr { border-bottom: 1px solid #eee; }
+    tbody tr:hover { background: #f0f6fb; }
+    tbody td { padding: 10px 14px; vertical-align: top; }
+
+    .score-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      min-width: 44px;
+      text-align: center;
+    }
+    .score-high { background: #d4edda; color: #155724; }
+    .score-med  { background: #fff3cd; color: #856404; }
+    .score-low  { background: #f0f0f0; color: #666; }
+
+    .event-name { font-weight: 600; color: #1a5276; }
+    .event-meta { font-size: 12px; color: #888; margin-top: 3px; }
+    .event-summary { font-size: 13px; color: #444; margin-top: 4px; line-height: 1.4; }
+    a.reg-link {
+      font-size: 12px;
+      color: #1a5276;
+      text-decoration: none;
+      border-bottom: 1px dashed #1a5276;
+    }
+    a.reg-link:hover { color: #0d3b5e; }
+
+    .dim-scores { font-size: 11px; color: #999; margin-top: 4px; }
+    .dim-scores span { margin-right: 8px; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+    .empty-state p { margin-top: 8px; }
+
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      background: #e8f0fe;
+      color: #1a5276;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Defence Events Dashboard</h1>
+    <p id="subtitle">Loading...</p>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Filter by name, venue, organiser...">
+    <select id="scoreFilter">
+      <option value="0">All scores</option>
+      <option value="8">8+ (Top picks)</option>
+      <option value="6" selected>6+ (Headline)</option>
+      <option value="4">4+ (On the radar)</option>
+    </select>
+    <select id="timeFilter">
+      <option value="all">All dates</option>
+      <option value="future">Upcoming only</option>
+      <option value="past">Past only</option>
+    </select>
+    <label><input type="checkbox" id="hideUnscored"> Hide unscored</label>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-col="relevance_score" data-dir="desc">Score <span class="arrow">&#9660;</span></th>
+          <th data-col="name">Event</th>
+          <th data-col="date_iso">Date</th>
+          <th data-col="venue">Venue</th>
+          <th data-col="organiser">Organiser</th>
+          <th>Link</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty" style="display:none;">
+      <h3>No events found</h3>
+      <p>Run <code>python main.py --dry-run</code> to populate scored_events.json</p>
+    </div>
+  </div>
+
+  <script>
+    let allEvents = [];
+    let sortCol = 'relevance_score';
+    let sortDir = 'desc';
+
+    async function loadData() {
+      try {
+        const resp = await fetch('scored_events.json');
+        if (!resp.ok) throw new Error('File not found');
+        allEvents = await resp.json();
+      } catch {
+        document.getElementById('subtitle').textContent = 'Could not load scored_events.json';
+        document.getElementById('empty').style.display = '';
+        return;
+      }
+      const now = new Date().toISOString().slice(0, 10);
+      const total = allEvents.length;
+      const scored = allEvents.filter(e => e.relevance_score > 0).length;
+      const high = allEvents.filter(e => e.relevance_score >= 6).length;
+
+      document.getElementById('subtitle').textContent =
+        `${total} events tracked \u2022 Last updated from scored_events.json`;
+
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-card high"><div class="number">${high}</div><div class="label">Headline (6+)</div></div>
+        <div class="stat-card med"><div class="number">${scored - high}</div><div class="label">Below threshold</div></div>
+        <div class="stat-card"><div class="number">${total}</div><div class="label">Total tracked</div></div>
+      `;
+      render();
+    }
+
+    function scoreClass(s) {
+      if (s >= 6) return 'score-high';
+      if (s >= 4) return 'score-med';
+      return 'score-low';
+    }
+
+    function render() {
+      const query = document.getElementById('search').value.toLowerCase();
+      const minScore = parseFloat(document.getElementById('scoreFilter').value);
+      const timeFilt = document.getElementById('timeFilter').value;
+      const hideUnscored = document.getElementById('hideUnscored').checked;
+      const today = new Date().toISOString().slice(0, 10);
+
+      let filtered = allEvents.filter(e => {
+        const score = e.relevance_score || 0;
+        if (score < minScore) return false;
+        if (hideUnscored && score === 0) return false;
+        if (query) {
+          const hay = [e.name, e.venue, e.organiser, e.description, e.source_category]
+            .filter(Boolean).join(' ').toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
+        if (timeFilt === 'future' && e.date_iso && e.date_iso < today) return false;
+        if (timeFilt === 'past' && e.date_iso && e.date_iso >= today) return false;
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+        if (typeof va === 'number' && typeof vb === 'number') {
+          return sortDir === 'asc' ? va - vb : vb - va;
+        }
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      const tbody = document.getElementById('tbody');
+      const empty = document.getElementById('empty');
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      tbody.innerHTML = filtered.map(e => {
+        const score = e.relevance_score || 0;
+        const scores = e.scores || {};
+        const dimHtml = scores.sector_fit ? `
+          <div class="dim-scores">
+            <span>Sector: ${scores.sector_fit}</span>
+            <span>Speakers: ${scores.seniority_speaker_quality}</span>
+            <span>Network: ${scores.networking_value}</span>
+            <span>Timing: ${scores.timeliness}</span>
+          </div>` : '';
+
+        const linkHtml = e.url && e.url !== '#'
+          ? `<a class="reg-link" href="${e.url}" target="_blank" rel="noopener">Register</a>`
+          : '<span style="color:#ccc">-</span>';
+
+        const catHtml = e.source_category
+          ? `<span class="tag">${e.source_category}</span>` : '';
+
+        return `<tr>
+          <td><span class="score-badge ${scoreClass(score)}">${score.toFixed(1)}</span>${dimHtml}</td>
+          <td>
+            <div class="event-name">${esc(e.name || 'Unknown')}</div>
+            <div class="event-summary">${esc(e.relevance_summary || e.description || '')}</div>
+            ${catHtml}
+          </td>
+          <td style="white-space:nowrap">${esc(e.date || 'TBC')}</td>
+          <td>${esc(e.venue || '-')}</td>
+          <td>${esc(e.organiser || '-')}</td>
+          <td>${linkHtml}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // Sorting
+    document.querySelectorAll('thead th[data-col]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (sortCol === col) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortCol = col;
+          sortDir = th.dataset.dir || 'asc';
+        }
+        document.querySelectorAll('thead th .arrow').forEach(a => a.textContent = '');
+        th.querySelector('.arrow').textContent = sortDir === 'asc' ? '\u25B2' : '\u25BC';
+        render();
+      });
+    });
+
+    // Filters
+    document.getElementById('search').addEventListener('input', render);
+    document.getElementById('scoreFilter').addEventListener('change', render);
+    document.getElementById('timeFilter').addEventListener('change', render);
+    document.getElementById('hideUnscored').addEventListener('change', render);
+
+    loadData();
+  </script>
+</body>
+</html>
