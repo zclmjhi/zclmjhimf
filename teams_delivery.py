@@ -1,5 +1,4 @@
-"""Microsoft Teams delivery via incoming webhook."""
-import json
+"""Microsoft Teams delivery via Power Automate Workflows webhook."""
 import logging
 import os
 from collections import defaultdict
@@ -21,37 +20,25 @@ def _webhook_url() -> str:
     return url
 
 
-def _format_item_fact(match: MatchResult) -> dict:
-    item = match.item
-    label = "URGENT" if match.is_brief_match else match.keyword
-    return {
-        "name": f"[{label}] {item.title}",
-        "value": f"[{item.source}] {item.url}",
-    }
+def _format_message(header: str, matches: list[MatchResult]) -> str:
+    """Build a plain-text message string for the Workflows webhook."""
+    lines = [header, ""]
+    for m in matches:
+        prefix = "🚨 URGENT" if m.is_brief_match else f"🔵 {m.keyword}"
+        lines.append(f"{prefix} — {m.item.title}")
+        lines.append(f"   {m.item.url}")
+        lines.append(f"   Source: {m.item.source}")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
-def _build_card(
-    title: str,
-    sections: list[dict],
-    is_urgent: bool = False,
-) -> dict:
-    """Build an Adaptive-Card-compatible Teams message payload."""
-    theme_color = "FF0000" if is_urgent else "0076D7"
-    return {
-        "@type": "MessageCard",
-        "@context": "http://schema.org/extensions",
-        "themeColor": theme_color,
-        "summary": title,
-        "sections": sections,
-    }
-
-
-def _post(payload: dict) -> bool:
+def _post(text: str) -> bool:
     url = _webhook_url()
     if not url:
         return False
     try:
-        r = requests.post(url, json=payload, timeout=_REQUEST_TIMEOUT)
+        # Power Automate Workflows webhook expects {"text": "..."}
+        r = requests.post(url, json={"text": text}, timeout=_REQUEST_TIMEOUT)
         r.raise_for_status()
         return True
     except requests.RequestException as exc:
@@ -60,35 +47,23 @@ def _post(payload: dict) -> bool:
 
 
 def deliver_immediate(matches: list[MatchResult]) -> None:
-    """Send each matched item immediately, one card per client per run."""
+    """Send matched items immediately, one message per client per run."""
     by_client: dict[str, list[MatchResult]] = defaultdict(list)
     for m in matches:
         by_client[m.client].append(m)
 
     for client, client_matches in by_client.items():
         has_urgent = any(m.is_brief_match for m in client_matches)
-        facts = [_format_item_fact(m) for m in client_matches]
-
-        sections = [
-            {
-                "activityTitle": f"Coverage update — {client}",
-                "activitySubtitle": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-                "facts": facts,
-                "markdown": True,
-            }
-        ]
-        label = "URGENT — " if has_urgent else ""
-        payload = _build_card(
-            title=f"{label}Coverage update for {client}",
-            sections=sections,
-            is_urgent=has_urgent,
-        )
-        if _post(payload):
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        prefix = "🚨 URGENT — " if has_urgent else ""
+        header = f"{prefix}Coverage update — {client} ({timestamp})"
+        text = _format_message(header, client_matches)
+        if _post(text):
             logger.info("Delivered %d items for %s to Teams", len(client_matches), client)
 
 
 def deliver_digest(matches: list[MatchResult]) -> None:
-    """Morning digest: group all 24-hour matches by client in a single card per client."""
+    """Morning digest: group last 24 h matches by client, one message per client."""
     if not matches:
         logger.info("Digest: no matches to deliver")
         return
@@ -99,21 +74,8 @@ def deliver_digest(matches: list[MatchResult]) -> None:
 
     for client, client_matches in by_client.items():
         has_urgent = any(m.is_brief_match for m in client_matches)
-        facts = [_format_item_fact(m) for m in client_matches]
-
-        sections = [
-            {
-                "activityTitle": f"Morning digest — {client}",
-                "activitySubtitle": f"{len(client_matches)} items in the past 24 hours",
-                "facts": facts,
-                "markdown": True,
-            }
-        ]
-        label = "URGENT — " if has_urgent else ""
-        payload = _build_card(
-            title=f"{label}Morning digest for {client}",
-            sections=sections,
-            is_urgent=has_urgent,
-        )
-        if _post(payload):
+        prefix = "🚨 URGENT — " if has_urgent else ""
+        header = f"{prefix}Morning digest — {client} ({len(client_matches)} items, past 24 h)"
+        text = _format_message(header, client_matches)
+        if _post(text):
             logger.info("Digest delivered %d items for %s", len(client_matches), client)
