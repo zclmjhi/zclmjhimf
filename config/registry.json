@@ -1,0 +1,26 @@
+{
+  "clients": [
+    {
+      "name": "Acme Infrastructure Fund",
+      "keywords": ["infrastructure debt", "Acme Fund", "midmarket infrastructure", "brownfield"],
+      "google_alerts_feeds": [
+        "https://www.google.com/alerts/feeds/REPLACE_WITH_YOUR_FEED_ID/rss"
+      ],
+      "notify_channel": "acme-coverage"
+    },
+    {
+      "name": "Meridian Capital",
+      "keywords": ["Meridian Capital", "private credit", "direct lending", "GP stakes"],
+      "google_alerts_feeds": [
+        "https://www.google.com/alerts/feeds/REPLACE_WITH_YOUR_FEED_ID/rss"
+      ],
+      "notify_channel": "meridian-coverage"
+    }
+  ],
+  "newsletter_senders": [
+    "newsletters@infrastructureinvestor.com",
+    "newsletters@citywire.co.uk",
+    "digest@pedata.com",
+    "alerts@pitchbook.com"
+  ]
+}

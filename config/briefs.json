@@ -1,0 +1,18 @@
+{
+  "briefs": [
+    {
+      "client": "Acme Infrastructure Fund",
+      "keywords": ["Acme closes fund", "Acme final close", "Acme Infrastructure III"],
+      "expires_at": "2026-06-01T18:00:00",
+      "requested_by": "Jack",
+      "notify_channel": "general"
+    },
+    {
+      "client": "Meridian Capital",
+      "keywords": ["Meridian GP stakes", "Meridian secondaries"],
+      "expires_at": "2026-05-20T18:00:00",
+      "requested_by": "Sarah",
+      "notify_channel": "general"
+    }
+  ]
+}
