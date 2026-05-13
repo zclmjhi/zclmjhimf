@@ -22,5 +22,9 @@
     "newsletters@citywire.co.uk",
     "digest@pedata.com",
     "alerts@pitchbook.com"
+  ],
+  "noise_filter": [
+    "job", "hiring", "vacancy", "career", "salary", "compensation", "recruiter",
+    "stock", "FSZ", "TSX", "NYSE", "share price", "earnings surprise"
   ]
 }

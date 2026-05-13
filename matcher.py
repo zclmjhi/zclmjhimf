@@ -47,6 +47,11 @@ def _matches(text: str, keyword: str) -> bool:
     return keyword.lower() in text.lower()
 
 
+def _is_noise(title: str, noise_terms: list[str]) -> bool:
+    title_lower = title.lower()
+    return any(term.lower() in title_lower for term in noise_terms)
+
+
 def match_items(
     items: list[NormalisedItem],
     registry: dict,
@@ -56,13 +61,19 @@ def match_items(
       1. Active briefs (flagged as urgent)
       2. Client keyword lists from registry
 
+    Items whose title matches a noise_filter term are discarded before matching.
     Returns all matches; a single item may match multiple clients/briefs.
     """
     active_briefs = _load_briefs()
     clients = registry.get("clients", [])
+    noise_terms = registry.get("noise_filter", [])
     results: list[MatchResult] = []
 
     for item in items:
+        if noise_terms and _is_noise(item.title, noise_terms):
+            logger.debug("Noise filtered: %s", item.title)
+            continue
+
         haystack = f"{item.title} {item.summary}"
 
         # Brief matching first so urgent flag takes priority

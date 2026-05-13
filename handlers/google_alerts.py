@@ -3,6 +3,7 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from html import unescape
+from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
 
@@ -41,6 +42,19 @@ def _parse_date(raw: str | None) -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _unwrap_google_url(url: str) -> str:
+    """Extract the real destination from a Google redirect URL.
+
+    Google Alerts wraps every link as https://www.google.com/url?...&url=<real>&...
+    We pull the `url` query parameter and URL-decode it.
+    """
+    if not url or "google.com/url" not in url:
+        return url
+    params = parse_qs(urlparse(url).query)
+    real = params.get("url", [""])[0]
+    return unquote(real) if real else url
+
+
 def _text(el: ET.Element | None) -> str:
     if el is None:
         return ""
@@ -56,7 +70,7 @@ def _parse_atom(root: ET.Element) -> list[dict]:
         summary_el = entry.find(f"{{{_ATOM}}}summary") or entry.find(f"{{{_ATOM}}}content")
         published_el = entry.find(f"{{{_ATOM}}}published") or entry.find(f"{{{_ATOM}}}updated")
 
-        link = link_el.get("href", "") if link_el is not None else ""
+        link = _unwrap_google_url(link_el.get("href", "") if link_el is not None else "")
         entries.append(
             {
                 "title": _text(title_el),
