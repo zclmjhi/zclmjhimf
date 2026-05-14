@@ -38,6 +38,16 @@ def _conn():
 # ---------------------------------------------------------------------------
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS user_profiles (
+    user_id                 TEXT PRIMARY KEY,
+    display_name            TEXT,
+    email                   TEXT,
+    -- Teams proactive messaging reference (JSON blob from Bot Framework)
+    teams_conversation_ref  TEXT,
+    created_at              TEXT NOT NULL,
+    updated_at              TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS clients (
     name        TEXT PRIMARY KEY,
     keywords    TEXT NOT NULL,          -- JSON list
@@ -126,6 +136,40 @@ def _now() -> str:
 
 def _to_dict(row: sqlite3.Row) -> dict:
     return dict(row)
+
+
+# ---------------------------------------------------------------------------
+# User profiles
+# ---------------------------------------------------------------------------
+
+def upsert_user_profile(
+    user_id: str,
+    display_name: str | None = None,
+    email: str | None = None,
+    teams_conversation_ref: str | None = None,
+) -> None:
+    now = _now()
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO user_profiles (user_id, display_name, email, teams_conversation_ref, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                display_name            = COALESCE(excluded.display_name, display_name),
+                email                   = COALESCE(excluded.email, email),
+                teams_conversation_ref  = COALESCE(excluded.teams_conversation_ref, teams_conversation_ref),
+                updated_at              = excluded.updated_at
+            """,
+            (user_id, display_name, email, teams_conversation_ref, now, now),
+        )
+
+
+def get_user_profile(user_id: str) -> dict | None:
+    with _conn() as con:
+        row = con.execute(
+            "SELECT * FROM user_profiles WHERE user_id = ?", (user_id,)
+        ).fetchone()
+    return _to_dict(row) if row else None
 
 
 # ---------------------------------------------------------------------------

@@ -116,7 +116,7 @@ async def _deliver_item(item: AlertItem, brief: dict) -> None:
     user_email = brief.get("user_email")
 
     if channel == "teams":
-        await deliver_teams(items=[item])
+        await deliver_teams(user_id=brief["user_id"], items=[item])
     elif channel == "email" and user_email:
         await deliver_email(to_email=user_email, items=[item])
 
@@ -150,7 +150,7 @@ async def _deliver_digest(brief: dict, items: list[AlertItem]) -> None:
     )
 
     if channel == "teams":
-        await deliver_teams(bundle=bundle)
+        await deliver_teams(user_id=brief["user_id"], bundle=bundle)
     elif channel == "email" and user_email:
         await deliver_email(to_email=user_email, bundle=bundle)
 

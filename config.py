@@ -6,7 +6,10 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 MODEL = "claude-opus-4-7"
 
-TEAMS_WEBHOOK_URL = os.environ.get("TEAMS_WEBHOOK_URL", "")
+# Teams bot credentials — provided by Azure when you register the bot.
+# The Managed Agents platform injects these at runtime.
+TEAMS_BOT_APP_ID = os.environ.get("TEAMS_BOT_APP_ID", "")
+TEAMS_BOT_APP_PASSWORD = os.environ.get("TEAMS_BOT_APP_PASSWORD", "")
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))

@@ -31,8 +31,17 @@ secrets:
     description: Anthropic API key for Claude model access
     required: true
 
-  - name: TEAMS_WEBHOOK_URL
-    description: Microsoft Teams Incoming Webhook URL for alert delivery
+  - name: TEAMS_BOT_APP_ID
+    description: >
+      Azure App Registration Application (client) ID for the Teams bot.
+      Created in Azure Portal when you register the bot. The Managed Agents
+      platform also needs this to wire up the Teams channel.
+    required: false
+
+  - name: TEAMS_BOT_APP_PASSWORD
+    description: >
+      Client secret for the Teams bot App Registration.
+      Created in Azure Portal > App registrations > Certificates & secrets.
     required: false
 
   - name: SMTP_HOST

@@ -113,6 +113,7 @@ def handle_message(
     user_message: str,
     conversation_history: list[dict] | None = None,
     user_email: str | None = None,
+    teams_conversation_ref: dict | None = None,
 ) -> str:
     """
     Process one user message and return the agent's reply.
@@ -120,8 +121,24 @@ def handle_message(
     `user_id` and `user_email` come from the platform's auth layer — never
     from the message content. The agent cannot be tricked into acting as a
     different user.
+
+    `teams_conversation_ref` is the Bot Framework conversation reference
+    included in the event when the platform is a Teams bot. Saving it here
+    means the monitoring loop can later deliver proactive alerts directly
+    to this person's private conversation.
     """
     storage.expire_stale_briefs()
+
+    # Persist the user's profile and Teams conversation reference so the
+    # monitoring loop can reach them proactively.
+    storage.upsert_user_profile(
+        user_id=user_id,
+        email=user_email,
+        teams_conversation_ref=(
+            __import__("json").dumps(teams_conversation_ref)
+            if teams_conversation_ref else None
+        ),
+    )
 
     now_utc = datetime.now(timezone.utc).isoformat()
     system = (
@@ -200,9 +217,10 @@ def agent_entrypoint(event: dict) -> Any:
       {
         "trigger_type": "user_message",
         "user_id": "alice@montfort.com",
-        "user_email": "alice@montfort.com",   # optional
-        "message": "Monitor Fiera Capital until end of day...",
-        "conversation_history": [...]          # optional
+        "user_email": "alice@montfort.com",          # optional
+        "message": "Monitor Fiera Capital...",
+        "conversation_history": [...],               # optional
+        "teams_conversation_ref": { ... }            # injected by platform when channel is Teams
       }
 
     Event shape for scheduled trigger:
@@ -224,6 +242,7 @@ def agent_entrypoint(event: dict) -> Any:
             user_message=event["message"],
             conversation_history=event.get("conversation_history"),
             user_email=event.get("user_email"),
+            teams_conversation_ref=event.get("teams_conversation_ref"),
         )
 
     return {"error": f"Unknown trigger_type: {trigger_type}"}
