@@ -1,0 +1,86 @@
+# Montfort Coverage Agent — Claude Managed Agents deployment configuration
+#
+# Deploy:   claude agent deploy --config claude-agent.yaml
+# Update:   claude agent deploy --config claude-agent.yaml --update
+# Logs:     claude agent logs montfort-coverage-agent --follow
+# Status:   claude agent status montfort-coverage-agent
+
+name: montfort-coverage-agent
+description: >
+  Press coverage monitoring agent for Montfort Communications.
+  Monitors configured news sources for client mentions and delivers
+  alerts to colleagues via Teams or email.
+
+# Python entrypoint
+runtime: python3.11
+entrypoint: agent:agent_entrypoint
+requirements: requirements.txt
+
+# Persistent storage — the SQLite database is mounted here across restarts
+storage:
+  - type: persistent_volume
+    mount_path: /data
+    env_var: DB_PATH
+    default_file: montfort_coverage.db
+
+# ---------------------------------------------------------------------------
+# Secrets — set via: claude agent secrets set <NAME> <VALUE>
+# ---------------------------------------------------------------------------
+secrets:
+  - name: ANTHROPIC_API_KEY
+    description: Anthropic API key for Claude model access
+    required: true
+
+  - name: TEAMS_WEBHOOK_URL
+    description: Microsoft Teams Incoming Webhook URL for alert delivery
+    required: false
+
+  - name: SMTP_HOST
+    description: SMTP server hostname for email delivery
+    required: false
+
+  - name: SMTP_PORT
+    description: SMTP server port (default 587)
+    required: false
+
+  - name: SMTP_USER
+    description: SMTP authentication username / sender address
+    required: false
+
+  - name: SMTP_PASS
+    description: SMTP authentication password
+    required: false
+
+  - name: ADMIN_USER_IDS
+    description: >
+      Comma-separated list of user IDs permitted to modify the client registry
+      and noise filter. If unset, all users are treated as admins (development only).
+    required: false
+
+# ---------------------------------------------------------------------------
+# Triggers
+# ---------------------------------------------------------------------------
+triggers:
+  # User conversation — fires when a colleague sends a message
+  - type: conversation
+    name: user_conversation
+    event: user_message
+
+  # Monitoring poll — runs every 5 minutes to check feeds and deliver alerts
+  - type: schedule
+    name: monitoring_poll
+    cron: "*/5 * * * *"
+    event: scheduled
+
+# ---------------------------------------------------------------------------
+# Compute
+# ---------------------------------------------------------------------------
+compute:
+  memory: 512Mi
+  timeout: 120   # seconds per invocation
+
+# ---------------------------------------------------------------------------
+# Environment variables (non-secret)
+# ---------------------------------------------------------------------------
+env:
+  POLL_INTERVAL_SECONDS: "300"
