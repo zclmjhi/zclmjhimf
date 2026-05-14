@@ -22,6 +22,10 @@ DB_PATH = os.environ.get("DB_PATH", "montfort_coverage.db")
 POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "300"))
 
 # Admin user IDs allowed to modify the client registry
+# Publication API keys — add one entry per source module.
+# Leave unset for any source you are not using; the source will skip silently.
+FT_API_KEY = os.environ.get("FT_API_KEY", "")
+
 ADMIN_USER_IDS: list[str] = [
     uid.strip()
     for uid in os.environ.get("ADMIN_USER_IDS", "").split(",")
